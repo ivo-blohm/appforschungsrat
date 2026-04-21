@@ -7,6 +7,7 @@ Created on Mon Dec 19 13:50:45 2022
 """
 ####Importe####
 
+import os
 import streamlit as st
 import pandas as pd
 import geopandas as gpd
@@ -17,33 +18,34 @@ import sklearn
 import xgboost as xgb
 from shapely import wkt
 
+_BASE = os.path.dirname(os.path.abspath(__file__))
+
 ####Funktionen Defenition####
 
-@st.cache(allow_output_mutation=True)
+@st.cache_data
 def load_data():
-    data = pd.read_csv('./Data/final_data.csv', index_col='Gemeindename')
+    data = pd.read_csv(os.path.join(_BASE, 'Data/final_data.csv'), index_col='Gemeindename')
     return data
 
 
-@st.cache(allow_output_mutation=True)
+@st.cache_data
 def load_borders():
-    borders = pd.read_csv("./Data/GemeindeGrenzen_Vereinfacht.csv", index_col='GemeindeLabel')
+    borders = pd.read_csv(os.path.join(_BASE, 'Data/GemeindeGrenzen_Vereinfacht.csv'), index_col='GemeindeLabel')
     borders['geometry'] = borders['geometry'].apply(wkt.loads)
     return gpd.GeoDataFrame(borders)
 
-@st.cache(allow_output_mutation=True)
+@st.cache_data
 def load_EV():
-    EV = pd.read_csv('./Data/aggrigated_data.csv', index_col='BFS-Nr')
+    EV = pd.read_csv(os.path.join(_BASE, 'Data/aggrigated_data.csv'), index_col='BFS-Nr')
     return EV[['Gemeindename','EV_Bestand_2010', 'EV_Bestand_2011', 'EV_Bestand_2012', 'EV_Bestand_2013', 'EV_Bestand_2014', 'EV_Bestand_2015', 'EV_Bestand_2016', 'EV_Bestand_2017', 'EV_Bestand_2018', 'EV_Bestand_2019', 'EV_Bestand_2020', 'EV_Bestand_2021']]
 
-@st.cache()
+@st.cache_data
 def load_stations():
-    stations = pd.read_csv('./Data/Chargingstations_melted.csv')
+    stations = pd.read_csv(os.path.join(_BASE, 'Data/Chargingstations_melted.csv'))
     return stations
 
-#Model kann leider nicht gecashed werden, da sonst ein Error auftaucht
 def load_model():
-    loaded_model = pickle.load(open('./Data/finalized_model.sav', 'rb'))
+    loaded_model = pickle.load(open(os.path.join(_BASE, 'Data/finalized_model.sav'), 'rb'))
     #loaded_model = xgb.Booster()
     #loaded_model.load_model("./Data/model.json")
     return loaded_model
@@ -62,7 +64,7 @@ def df_growth(df, ev_growth, pop_growth, sector_3_growth, mdl):
     df_estm['Anz_Einwohner'] = np.floor(df_estm['Anz_Einwohner'] * (1+pop_growth))
     df_estm['Beschäftigte_3_Sektor'] = np.floor(df_estm['Beschäftigte_3_Sektor'] * (1+sector_3_growth))
     print('wachstum')
-    df_estm['Ladestationen_optimiert'] = mdl.predict(df_estm.drop(columns=['Ladestationen_optimiert','aktl_Ladestationen','EU_Anforderung','EU Differenz','BFS-Nr','Differenz'],axis=1)).round(0)
+    df_estm['Ladestationen_optimiert'] = mdl.predict(df_estm.drop(columns=['Ladestationen_optimiert','aktl_Ladestationen','EU_Anforderung','EU Differenz','BFS-Nr','Differenz'])).round(0)
     print('model')
     df_estm['EU_Anforderung'] = df_estm['EV_Bestand_2021'] / 10 
     print('rechnung1')
@@ -146,7 +148,7 @@ with tab1: #Analyse nach Gemeinde
     
         select = st.selectbox(
         'Bitte wählen Sie einen Kartenfilter aus',
-        df.drop(['BFS-Nr','Gemeinde_Kategorie'],axis=1).columns, index=24, key=2)
+        df.drop(columns=['BFS-Nr','Gemeinde_Kategorie']).columns, index=24, key=2)
         
         ###Karte###
         fig1 = px.choropleth_mapbox(df,
@@ -170,7 +172,7 @@ with tab2: #Analyse Schweiz
     
     select2 = st.selectbox(
     'Bitte wählen Sie einen Kartenfilter aus',
-    df.drop(['BFS-Nr','Gemeinde_Kategorie'],axis=1).columns, index=24, key=3)
+    df.drop(columns=['BFS-Nr','Gemeinde_Kategorie']).columns, index=24, key=3)
 
 ###Karte###
     fig2 = px.choropleth_mapbox(df,
@@ -256,7 +258,7 @@ with tab2: #Analyse Schweiz
     
     select3 = row4_col2.selectbox(
     'Bitte wählen Sie einen Kartenfilter aus',
-    df.drop(['BFS-Nr','Gemeinde_Kategorie'],axis=1).columns, index=1, key=7)
+    df.drop(columns=['BFS-Nr','Gemeinde_Kategorie']).columns, index=1, key=7)
     
     filtered_data = df[df.index.isin(options3)]
     
